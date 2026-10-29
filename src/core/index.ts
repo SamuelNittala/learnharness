@@ -84,3 +84,8 @@ export * from "./coverage.ts";
 // ONE session→markdown formatter — the extractor's view and the user-facing
 // export share it. Pure, browser-safe.
 export * from "./session-markdown.ts";
+// curriculum.ts (curriculum feature, Step 1): validation, current-objective
+// and retrieval selection, the marker text, the progress rendering and the
+// byte-preserving splices — pure and browser-safe (hashing stays in the
+// store adapters).
+export * from "./curriculum.ts";

@@ -25,6 +25,12 @@ import type {
 	SessionCheckpoint,
 	TurnUsage,
 	NotesSource,
+	CurriculumDraft,
+	CurriculumMirrorState,
+	CurriculumObjective,
+	CurriculumRecord,
+	CurriculumSessionLink,
+	CurriculumSummary,
 } from "./contracts.ts";
 import type { UserSettings } from "./settings.ts";
 
@@ -222,3 +228,75 @@ export interface AuthStore {
 	deleteAuthVar(name: string): void;
 }
 
+
+// ─── CurriculumStore — imported curricula (data/curricula) ──────────────────
+
+/**
+ * The curriculum record's home (curriculum feature, Step 1): one JSON file
+ * per curriculum, LearnHarness the SOLE writer — the Obsidian note is a
+ * mirror, never read back as state. Same idioms as ChatStore: id-guarded
+ * filenames, a write choke point stamping CURRENT_CURRICULUM_VERSION, a
+ * NEWER stamp refused on read.
+ */
+export interface CurriculumStore {
+	/** Persist a reviewed draft as a new record (mints id + timestamps). */
+	createCurriculum(draft: CurriculumDraft): CurriculumRecord;
+	/** The full record, or null if unknown id / corrupt / newer-stamped. */
+	getCurriculum(id: string): CurriculumRecord | null;
+	/** Summaries, newest activity first. */
+	listCurricula(): CurriculumSummary[];
+	/** Replace the objective list (statuses/evidence); source.rawMarkdown
+	 *  and the session links are untouched. Throws if the id is unknown. */
+	replaceObjectives(id: string, objectives: CurriculumObjective[]): CurriculumRecord;
+	/** Append a session link — idempotent per chatId. */
+	linkSession(id: string, link: CurriculumSessionLink): CurriculumRecord;
+	/** Stamp the last mirror write (the drift-check baseline). */
+	recordMirror(id: string, state: CurriculumMirrorState): CurriculumRecord;
+	/** Stamp the mirrored session note (path + hash) on a session link. */
+	recordSessionNote(id: string, chatId: string, note: { path: string; hash: string }): CurriculumRecord;
+	/** The curriculum a chat was started from, or null. */
+	findByChat(chatId: string): CurriculumRecord | null;
+}
+
+// ─── CurriculumMirror — one-way writer to Obsidian ───────────────────────────
+
+/** The allowed write roots (settings.json `obsidian` section). A path
+ *  outside the matching root is REFUSED; unset root = skipped. */
+export interface MirrorRoots {
+	vaultPath?: string;
+	registryDir?: string;
+}
+
+export type MirrorOutcome = "written" | "unchanged" | "conflict" | "skipped" | "refused";
+
+export interface MirrorFileResult {
+	outcome: MirrorOutcome;
+	/** sha256 of the file content as it stands after the call (written or
+	 *  unchanged); absent for conflict / skipped / refused. */
+	hash?: string;
+	/** Why it was not written (conflict / skipped / refused). */
+	reason?: string;
+}
+
+export interface MirrorProgressResult {
+	note: MirrorFileResult;
+	registry: MirrorFileResult;
+}
+
+export interface CurriculumMirror {
+	/** Mirror progress into the curriculum note (`### Progress update`
+	 *  only) and the registry index (`## Progress` managed bullets).
+	 *  Hash drift against the last write (or the import baseline) is a
+	 *  `conflict`: nothing is written. */
+	writeProgress(record: CurriculumRecord, roots: MirrorRoots): MirrorProgressResult;
+	/** Mirror one session's markdown export into the curriculum's sessions
+	 *  folder as YYYY-MM-DD.md (-2, -3 on a same-day collision). Only
+	 *  overwrites the file LearnHarness created (link.note), guarded by its
+	 *  last-written hash. */
+	writeSessionNote(
+		record: CurriculumRecord,
+		link: CurriculumSessionLink,
+		markdown: string,
+		roots: MirrorRoots,
+	): MirrorFileResult & { path?: string };
+}
