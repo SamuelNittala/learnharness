@@ -1,6 +1,6 @@
 import { chainsForSelection, formatChainLine } from "@/src/core";
 import { newGraphContextMessage, type GraphContextPick } from "@/src/core";
-import { compactionInFlight, createChat, isTurnRunning, listChats, readSettingsRecord, stores, titleFromPrompt } from "@/src/server";
+import { compactionInFlight, continueCurriculum, curriculumFailure, createChat, findCurriculum, isTurnRunning, listChats, stampStrongSlot, stores, titleFromPrompt } from "@/src/server";
 import type { ChatListItem } from "@/src/core";
 
 /** The session picker's list: record-derived summaries (phase, pending
@@ -20,26 +20,37 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-	const body = (await req.json().catch(() => ({}))) as { title?: unknown; kind?: unknown; graphContext?: unknown };
+	const body = (await req.json().catch(() => ({}))) as { title?: unknown; kind?: unknown; graphContext?: unknown; curriculum?: unknown };
+	// CONTINUE A CURRICULUM (curriculum feature, Step 1): the client sends
+	// only the curriculumId; the server builds the context marker from the
+	// stored curriculum (continueCurriculum). Validated BEFORE any chat is
+	// created — no orphan chats — and it cannot combine with graph picks or
+	// practice mode (Step 1 scope).
+	const curriculumId = (body.curriculum as { curriculumId?: unknown } | undefined)?.curriculumId;
+	if (body.curriculum !== undefined) {
+		if (typeof curriculumId !== "string" || !findCurriculum(curriculumId)) {
+			return Response.json({ error: "Unknown curriculum", code: "unknown_curriculum" }, { status: 400 });
+		}
+		if (body.graphContext !== undefined || body.kind === "practice") {
+			return Response.json({ error: "A curriculum session cannot be combined with graph picks or practice mode", code: "curriculum_conflict" }, { status: 400 });
+		}
+		try {
+			const started = continueCurriculum(curriculumId);
+			return Response.json({ id: started.chatId, title: started.title, prompt: started.prompt });
+		} catch (err) {
+			return curriculumFailure(err);
+		}
+	}
 	const title = typeof body.title === "string" ? body.title : "";
 	// Practice sessions (owner, 2026-10-04): kind "practice" marks the
 	// record — the practice agent + its tools from turn 1, no extraction.
 	const kind = body.kind === "practice" ? ("practice" as const) : undefined;
 	const chat = createChat(titleFromPrompt(title || "Untitled session"), kind);
 	// PER-SESSION MODELS (owner, 2026-09-28): a session owns its model +
-	// thinking level from birth — stamped verbatim from the STRONG slot,
-	// the new-session default. From here the strong slot never reaches
-	// this session again: in-session picks write the session's own record
-	// (PUT /api/chats/:id/settings). No strong slot configured (fresh BYOK
-	// boot) → no stamp; the turn gate's 503 models_not_configured envelope
-	// refuses honestly until the setup flow fills the slot.
-	const strong = readSettingsRecord()?.models?.strong;
-	if (strong?.model) {
-		stores.chatStore.saveSettings(chat.id, {
-			model: { provider: strong.model.provider, id: strong.model.id },
-			thinkingLevel: strong.thinkingLevel,
-		});
-	}
+	// thinking level from birth — stamped verbatim from the STRONG slot
+	// (stampStrongSlot, src/server/chats.ts: no strong slot → no stamp, the
+	// turn gate's 503 refuses honestly).
+	stampStrongSlot(chat.id);
 	// The session's map context (owner, 2026-10-04): the picked
 	// propositions ride the CREATION — message[0] is a graph-context
 	// marker (a separate custom message BEFORE the learner's first user
