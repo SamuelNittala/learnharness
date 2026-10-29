@@ -113,9 +113,14 @@ export function filterEnabledTools<T>(tools: Record<string, T>, enabled?: Enable
 	return out;
 }
 
+/** Only the NEWEST assistant message can hold the pending call — the
+ *  native twin's rule (danglingQuestionOf). A question the learner
+ *  superseded by typing instead of answering must never resurface in the
+ *  dock: the server would refuse its answer. */
 function findPending(messages: UIMessage[], names: readonly string[], authority?: string | PendingQuestion): PendingToolCall | null {
 	for (let m = messages.length - 1; m >= 0; m--) {
 		const msg = messages[m]!;
+		if (msg.role !== "assistant") continue;
 		for (let p = 0; p < msg.parts.length; p++) {
 			const part = msg.parts[p]!;
 			if (isToolUIPart(part) && part.state === "input-available") {
@@ -131,6 +136,7 @@ function findPending(messages: UIMessage[], names: readonly string[], authority?
 				}
 			}
 		}
+		return null;
 	}
 	return null;
 }
