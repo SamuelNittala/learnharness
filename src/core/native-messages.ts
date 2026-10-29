@@ -45,6 +45,8 @@ import {
 } from "./contracts/chat.ts";
 import { compactAnswerForModel, type QuestionAnswerData } from "./question-core.ts";
 import { activeCompactionOf, keptIndexFor } from "./compaction.ts";
+import type { CurriculumContextData, CurriculumObjective, CurriculumRecord } from "./contracts/curriculum.ts";
+import { curriculumContextText, objectiveLabel } from "./curriculum.ts";
 
 /** The hard-invariant wording for an aborted turn's unanswered calls —
  *  carried over verbatim from the pre-native era so the model's view
@@ -68,6 +70,7 @@ export interface LhMarkerMessage {
 	role: "custom";
 	customType:
 		| "graph-context"
+		| "curriculum-context"
 		| "probe-handoff"
 		| "subagent-steer"
 		| "subagent-abort"
@@ -302,6 +305,39 @@ export function newGraphContextMessage(picks: readonly GraphContextPick[], chain
 		content: lines.join("\n"),
 		display: true,
 		details: { propositions: picks, chains },
+		timestamp: Date.now(),
+	};
+}
+
+/** The session's curriculum context (curriculum feature, Step 1): a
+ *  SEPARATE custom message BEFORE the learner's first user message, built
+ *  server-side from the stored curriculum (never from client text). The
+ *  model reads `content` (flattened to a user message by toLlmMessages like
+ *  every marker — the PREAMBLE LAW applies, see curriculumContextText);
+ *  `details` feeds the transcript's CurriculumContextCard. */
+export function newCurriculumContextMessage(
+	record: Pick<CurriculumRecord, "id" | "title" | "progressUnit">,
+	current: CurriculumObjective,
+	retrieval: readonly CurriculumObjective[],
+): LhMarkerMessage {
+	const details: CurriculumContextData = {
+		curriculumId: record.id,
+		title: record.title,
+		objective: {
+			id: current.id,
+			label: objectiveLabel(record, current),
+			evidenceCriterion: current.evidenceCriterion,
+			cumulative: current.cumulative,
+		},
+		retrieval: retrieval.map((o) => ({ id: o.id, label: objectiveLabel(record, o) })),
+	};
+	return {
+		id: newMessageId(),
+		role: "custom",
+		customType: "curriculum-context",
+		content: curriculumContextText(record, current, retrieval),
+		display: true,
+		details,
 		timestamp: Date.now(),
 	};
 }
@@ -819,7 +855,7 @@ export function nativeInputCause(message: AgentMessage, history: readonly AgentM
 	if (message.role === "custom") {
 		if (["probe-handoff", "subagent-steer", "subagent-abort"].includes(message.customType)) return "automatic";
 		if (["practice-thinking", "practice-next"].includes(message.customType)) return "learner";
-		return ["graph-context", "plan-block", "problem-dismissed", "compaction"].includes(message.customType) ? "neutral" : "unrecognizable";
+		return ["graph-context", "curriculum-context", "plan-block", "problem-dismissed", "compaction"].includes(message.customType) ? "neutral" : "unrecognizable";
 	}
 	if (message.role === "toolResult") {
 		if (!(QUESTION_TOOLS as readonly string[]).includes(message.toolName) || message.isError || message.details == null || (message.details as { dismissed?: boolean }).dismissed) return "neutral";

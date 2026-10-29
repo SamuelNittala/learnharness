@@ -388,6 +388,17 @@ function projectMarker(marker: LhMarkerMessage, out: LhViewMessage[]): void {
 			});
 			return;
 		}
+		case "curriculum-context": {
+			// The session's curriculum context (curriculum feature): user-side
+			// scaffolding like the graph-context pick — a collapsible card
+			// above the first user message, never a text bubble.
+			out.push({
+				id: marker.id,
+				role: "user",
+				parts: [{ type: "data-curriculum-context", id: `cc_${marker.id}`, data: marker.details }],
+			});
+			return;
+		}
 		case "probe-handoff": {
 			out.push({
 				id: marker.id,
