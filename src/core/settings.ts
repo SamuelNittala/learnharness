@@ -456,6 +456,16 @@ export interface CompactionSettings {
 	thresholdTokens?: number;
 }
 
+/** Obsidian mirror roots (curriculum feature, Step 1): the ONLY places the
+ *  curriculum mirror may write. vaultPath = the Obsidian vault (curriculum
+ *  note + sessions folder); registryDir = the learning-agent registry
+ *  directory (learning-paths/, outside the vault). Unset = that mirror is
+ *  skipped. Absolute paths. */
+export interface ObsidianSettings {
+	vaultPath?: string;
+	registryDir?: string;
+}
+
 /** THE record. Every section optional (delta); unknown top-level keys are
  *  preserved verbatim by the sanitizer (forward-compat with newer records). */
 export interface UserSettings {
@@ -472,6 +482,7 @@ export interface UserSettings {
 	appearance?: AppearanceSettings;
 	graph?: GraphSettings;
 	compaction?: CompactionSettings;
+	obsidian?: ObsidianSettings;
 	[key: string]: unknown;
 }
 
@@ -781,6 +792,15 @@ function sanitizeCompaction(raw: Record<string, unknown>): CompactionSettings {
 	return out;
 }
 
+function sanitizeObsidian(raw: Record<string, unknown>): ObsidianSettings {
+	const out: ObsidianSettings = {};
+	for (const key of ["vaultPath", "registryDir"] as const) {
+		const v = raw[key];
+		if (typeof v === "string" && v.trim()) out[key] = v.trim();
+	}
+	return out;
+}
+
 /**
  * Coerce arbitrary JSON (disk file, network body) into a valid delta record:
  * known fields validated strictly (invalid ones drop/clamp per module doc),
@@ -827,6 +847,9 @@ export function sanitizeUserSettings(raw: unknown): UserSettings | null {
 		if (r.compaction !== undefined && r.compaction !== null && typeof r.compaction === "object") {
 			out.compaction = sanitizeCompaction(r.compaction as Record<string, unknown>);
 		}
+	}
+	if (r.obsidian !== null && typeof r.obsidian === "object" && !Array.isArray(r.obsidian)) {
+		out.obsidian = sanitizeObsidian(r.obsidian as Record<string, unknown>);
 	}
 	// Unknown top-level keys ride along untouched (forward-compat). One
 	// known-DEAD key is stripped instead of riding: `chat` (the old

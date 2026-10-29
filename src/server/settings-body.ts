@@ -11,6 +11,7 @@
  * a different concern and are preserved by the sanitizer (core/settings.ts).
  */
 
+import * as path from "node:path";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import { isHexColor, type ChatSettings } from "../core";
 import type {
@@ -23,6 +24,7 @@ import type {
 	DictationSettings,
 	GraphSettings,
 	ModelsSettings,
+	ObsidianSettings,
 	RoleModelOverride,
 } from "../core/settings.ts";
 import { BACKGROUND_MODEL_ROLES, COMPACTION_THRESHOLD_FLOOR, CUSTOM_MODEL_PIN_FLOOR, EXTRACTION_CHUNK_TOKENS_FLOOR, MODEL_SLOTS } from "../core/settings.ts";
@@ -435,8 +437,29 @@ export function parseCustomModelOverridesBody(
 	return { ok: true, settings: out };
 }
 
-/** The section→parser map for PUT /api/settings/[section]. The custom endpoint
- *  is NOT a section — it connects via POST /api/custom-provider. */
+/** obsidian (curriculum feature, Step 1): the mirror's allowed write roots.
+ *  Strict write side: each present field must be an absolute path string
+ *  (trimmed). Replace-whole; {} clears both. Existence is NOT checked here —
+ *  the mirror refuses an inaccessible root at write time. */
+export function parseObsidianSettingsBody(body: unknown): SettingsBodyResult<ObsidianSettings> {
+	const raw = asRecord(body);
+	if (!raw) return { ok: false, error: "Invalid JSON body" };
+	const settings: ObsidianSettings = {};
+	for (const key of ["vaultPath", "registryDir"] as const) {
+		const v = raw[key];
+		if (v === undefined) continue;
+		if (typeof v !== "string") return { ok: false, error: `${key} must be a string` };
+		const trimmed = v.trim();
+		if (!trimmed) continue;
+		if (!path.isAbsolute(trimmed)) return { ok: false, error: `${key} must be an absolute path` };
+		settings[key] = trimmed;
+	}
+	return { ok: true, settings };
+}
+
+/** The section→parser map for PUT /api/settings/[section] (the route also
+ *  carries the special prompts sub-resource). The custom endpoint is NOT a
+ *  section — it connects via POST /api/custom-provider. */
 export const SETTINGS_SECTIONS = {
 	general: parseGeneralSettingsBody,
 	chat: parseSettingsBody,
@@ -447,6 +470,7 @@ export const SETTINGS_SECTIONS = {
 	models: parseModelsSettingsBody,
 	dictation: parseDictationSettingsBody,
 	claudeCode: parseClaudeCodeSettingsBody,
+	obsidian: parseObsidianSettingsBody,
 } as const;
 
 export type SettingsSectionName = keyof typeof SETTINGS_SECTIONS;
