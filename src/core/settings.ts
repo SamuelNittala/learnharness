@@ -319,6 +319,8 @@ export const ROLE_SLOT: Readonly<Record<ModelRole, ModelSlotName>> = {
 	demoBuilder: "cheap",
 	extractor: "cheap",
 	auditor: "cheap",
+	// The curriculum importer reads ~35 KB of dense tables: strong tier.
+	curriculumImporter: "strong",
 	visualMaker: "vision",
 	pdfReader: "vision",
 };
