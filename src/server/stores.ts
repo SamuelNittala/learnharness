@@ -7,6 +7,8 @@
  */
 
 import { chatStore } from "../store/chats.ts";
+import { curriculumStore } from "../store/curricula.ts";
+import { curriculumMirror } from "../store/obsidian-mirror.ts";
 import { graphStore } from "../store/graph.ts";
 import { jobStore } from "../store/jobs.ts";
 import { settingsStore } from "../store/settings.ts";
@@ -15,6 +17,8 @@ import { syncCustomProvider } from "./custom-provider.ts";
 /** The wired adapters. Satisfies core/graph.ts's GraphDeps structurally. */
 export const stores = {
 	chatStore,
+	curriculumStore,
+	curriculumMirror,
 	graphStore,
 	jobStore,
 	settingsStore,
