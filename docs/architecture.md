@@ -25,7 +25,7 @@ Hold the architecture along two orthogonal axes:
 
 | System | Owns (sole writer) | Role |
 |---|---|---|
-| **Classroom** — session engine | `data/chats/*.json` | the turn pipeline, prober→teacher, plan tree, questions, phases |
+| **Classroom** — session engine | `data/chats/*.json`, `data/curricula/*.json` | the turn pipeline, prober→teacher, plan tree, questions, phases; imported curricula (objectives + progress) and the one-way Obsidian mirror of them (`src/store/obsidian-mirror.ts`) |
 | **Workbench** — background labor | `data/jobs/*.json` | job runner, researcher/demo-builder/visual-maker, steer delivery |
 | **Library** — world model | `data/graph/*` ledgers | extraction pipeline (sole graph writer), derivation, birth-session clusters |
 | **Practice** — problem sets | `data/practice/*.json` | partitioner→generator→grader pipeline, self-contained sets (§7) |
@@ -97,7 +97,7 @@ flowchart TB
     end
 
     subgraph CORE["CORE — src/core — pure domain, zero IO"]
-        CONTRACTS["contracts/ — 6 domains: plan · graph · chat · jobs · probe · models"]
+        CONTRACTS["contracts/ — domains: plan · graph · chat · jobs · probe · models · curriculum"]
         PORTS["ports.ts — ChatStore · GraphStore · JobStore (types only)"]
         BRAIN["merger + derivation · coverage · question-core · plan-tree · phases · layout · prices · tool-parts"]
         CBAR["barrel index.ts — browser-safe exports ONLY"]
@@ -153,6 +153,7 @@ flowchart TB
 - `contracts/probe.ts` — probe assessment + the shared zod schema
 - `contracts/models.ts` — client-safe model-catalog shapes
 - `contracts/practice.ts` — problem sets, reasoning chains, params, grade scores
+- `contracts/curriculum.ts` — imported curricula: objectives, evidence criteria, source/mirror state, session links, the curriculum-context marker payload
 
 ---
 
