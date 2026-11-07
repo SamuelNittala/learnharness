@@ -10,6 +10,7 @@ import { chatStore } from "../store/chats.ts";
 import { curriculumStore } from "../store/curricula.ts";
 import { curriculumMirror } from "../store/obsidian-mirror.ts";
 import { graphStore } from "../store/graph.ts";
+import { sourceOrganizationStore } from "../store/source-organization.ts";
 import { jobStore } from "../store/jobs.ts";
 import { settingsStore } from "../store/settings.ts";
 import { resolveSettings, type EffectiveSettings } from "../core/settings-resolution.ts";
@@ -20,6 +21,7 @@ export const stores = {
 	curriculumStore,
 	curriculumMirror,
 	graphStore,
+	sourceOrganizationStore,
 	jobStore,
 	settingsStore,
 };
