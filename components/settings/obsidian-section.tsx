@@ -1,7 +1,7 @@
 "use client";
 
 import type { ObsidianSettings } from "@/src/core";
-import { CommitInput, SettingsGroup, SettingsRow } from "./controls.tsx";
+import { CommitInput, SettingsGroup, SettingsRow, type SettingsCommitResult } from "./controls.tsx";
 
 /**
  * The Obsidian section (curriculum feature, Step 1): the two ALLOWED WRITE
@@ -15,13 +15,13 @@ export function ObsidianSection({
 	onSectionChange,
 }: {
 	obsidian: ObsidianSettings | undefined;
-	onSectionChange: (next: ObsidianSettings) => void;
+	onSectionChange: (next: ObsidianSettings) => SettingsCommitResult;
 }) {
-	const commit = (key: keyof ObsidianSettings) => (next: string) => {
+	const commit = (key: keyof ObsidianSettings) => (next: string): SettingsCommitResult => {
 		const section: ObsidianSettings = { ...obsidian };
 		if (next) section[key] = next;
 		else delete section[key];
-		onSectionChange(section);
+		return onSectionChange(section);
 	};
 	return (
 		<SettingsGroup label="Curriculum mirror" testid="obsidian-group">
